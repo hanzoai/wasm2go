@@ -15,9 +15,30 @@ import (
 )
 
 var (
-	cacheMu sync.Mutex
-	cache   = map[string][]byte{}
+	cacheMu      sync.Mutex
+	cache        = map[string][]byte{}
+	watFlagsOnce sync.Once
+	watFlags     []string
 )
+
+func getWatFlags() []string {
+	watFlagsOnce.Do(func() {
+		out, _ := exec.Command("wat2wasm", "--help").CombinedOutput()
+		help := string(out)
+		var flags []string
+		if strings.Contains(help, "--enable-exceptions") {
+			flags = append(flags, "--enable-exceptions")
+		}
+		if strings.Contains(help, "--enable-threads") {
+			flags = append(flags, "--enable-threads")
+		}
+		if strings.Contains(help, "--enable-memory64") {
+			flags = append(flags, "--enable-memory64")
+		}
+		watFlags = flags
+	})
+	return watFlags
+}
 
 // Wasm compiles testdata/<basename>.wat via wat2wasm and returns the wasm bytes.
 // name may include or omit the .wasm or .wat extension — both are accepted and
@@ -47,9 +68,9 @@ func Wasm(t testing.TB, name string) []byte {
 		t.Fatalf("testfixture: wat source not found: %s", watPath)
 	}
 
-	// --enable-exceptions lets EH fixtures (try/catch/throw/tag) compile; it
-	// only enables the feature, so non-EH fixtures are unaffected.
-	cmd := exec.Command("wat2wasm", "--enable-exceptions", "--enable-threads", "--enable-memory64", "--output=-", watPath)
+	args := append([]string{}, getWatFlags()...)
+	args = append(args, "--output=-", watPath)
+	cmd := exec.Command("wat2wasm", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

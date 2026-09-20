@@ -75,9 +75,9 @@ var (
 	stextRe = regexp.MustCompile(`^([^\s]+) STEXT`)
 	insnRe  = regexp.MustCompile(`^\t0x[0-9a-f]+ (\d+) \([^)]*\)\t(.*)$`)
 	textRe  = regexp.MustCompile(`TEXT\t([^\s(]+)\(SB\), ([^,]+), \$(\d+)-(\d+)$`)
-	dataRe  = regexp.MustCompile(`^([^\s]+) SRODATA (?:static )?(?:dupok )?size=(\d+)$`)
+	dataRe  = regexp.MustCompile(`^([^\s]+) SRODATA (?:static )?(?:dupok )?size=(\d+)(?:.*)$`)
 	hexRe   = regexp.MustCompile(`^\t0x[0-9a-f]+ ((?:[0-9a-f]{2} )+)`)
-	relocRe = regexp.MustCompile(`^\trel (\d+)\+(\d+) t=R_ADDR ([^\s]+)\+(\d+)$`)
+	relocRe = regexp.MustCompile(`^\trel (\d+)\+(\d+) t=R_ADDR(?:ARM64)? ([^\s]+)\+(\d+)$`)
 )
 
 // ParseListing parses `go tool compile -S` output (as produced via

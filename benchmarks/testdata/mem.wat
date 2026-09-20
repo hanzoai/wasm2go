@@ -1,0 +1,21 @@
+(module
+  (memory (export "memory") 1)
+  (func (export "bench_mem") (param $size i32) (result i32)
+    (local $i i32)
+    (local $acc i32)
+    (local.set $i (i32.const 0))
+    (loop $wloop
+      (i32.store8 (local.get $i) (i32.and (i32.mul (local.get $i) (i32.const 31)) (i32.const 255)))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br_if $wloop (i32.lt_u (local.get $i) (local.get $size)))
+    )
+    (local.set $i (i32.const 0))
+    (local.set $acc (i32.const 0))
+    (loop $rloop
+      (local.set $acc (i32.add (local.get $acc) (i32.load (local.get $i))))
+      (local.set $i (i32.add (local.get $i) (i32.const 4)))
+      (br_if $rloop (i32.lt_u (local.get $i) (local.get $size)))
+    )
+    (local.get $acc)
+  )
+)
