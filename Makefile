@@ -58,11 +58,15 @@ test-cover:
 		printf "coverage %s%% meets the %s%% threshold\n", t, th }'
 
 vet:
-	go vet ./...
+	# Generated benchmark packages contain compiler-produced unreachable stubs.
+	# Vet the compiler and test harness source; check generated output by e2e tests.
+	go vet ./cmd/... ./internal/... ./transpile/...
 
 # lint runs golangci-lint, pinned via tools/go.mod.
 lint:
-	$(LINT) run ./...
+	# Exclude benchmarks/generated/** from source lint; it is generated code.
+	# Benchmark comparison sources have their own execution tests.
+	$(LINT) run ./cmd/... ./internal/... ./transpile/...
 
 # release publishes a tagged release through GoReleaser.
 release:
