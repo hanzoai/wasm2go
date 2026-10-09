@@ -141,7 +141,7 @@ func TestMem64ScalarOverflowTraps(t *testing.T) {
 	}
 	checkTrap(-32)
 	checkTrap(-1)
-	checkTrap(65536)
+	checkTrap(131072) // memory initially has two 64KiB pages; 131072 is OOB
 	fmt.Println(m.Rw(0, 424242))
 `)
 	if got, want := runMem64(t, dir), "true\\ntrue\\ntrue\\n424242"; got != want {
