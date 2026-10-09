@@ -154,8 +154,9 @@ func TestMem64ScalarOverflowTraps(t *testing.T) {
 // allocates ~4.1 GiB, so it is skipped in -short runs (CI included
 // only on beefy runners).
 func TestMem64BeyondFourGiB(t *testing.T) {
-	if testing.Short() {
-		t.Skip("allocates >4GiB; skipped in -short")
+	require := os.Getenv("WASM2GO_REQUIRE_MEM64_4G") == "1"
+	if testing.Short() && !require {
+		t.Skip("allocates >4GiB; set WASM2GO_REQUIRE_MEM64_4G=1 for mandatory certification")
 	}
 	// 2 initial pages; +65536 pages lands at 4 GiB + 128 KiB, so the
 	// address 1<<32 is in bounds — one byte past everything wasm32
@@ -170,7 +171,10 @@ func TestMem64BeyondFourGiB(t *testing.T) {
 		t.Fatalf("unexpected output: %q", got)
 	}
 	if lines[0] == "-1" {
-		t.Skip("host refused a >4GiB linear memory")
+		if require {
+			t.Fatal("Memory64 mandatory gate failed: host refused >4GiB linear memory")
+		}
+		t.Skip("host refused >4GiB memory: NOT certified; re-run with WASM2GO_REQUIRE_MEM64_4G=1 on a large host")
 	}
 	if lines[1] != "424242" {
 		t.Errorf("read past 4GiB: got %s, want 424242", lines[1])
