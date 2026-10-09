@@ -37,6 +37,7 @@ func main() {
 	keepDeadFuncs := flag.Bool("keep-dead-funcs", false, "disable whole-function dead-code elimination (useful for diffing)")
 	entryExports := flag.String("entry-exports", "", "comma-separated list of export names that are DCE roots; the literal value \"NONE\" means no export is a root")
 	promotionReport := flag.String("promotion-report", "", "write the SSA memory-promotion report (JSON: per-function frame/rodata/slab classification) to this path")
+	requireMemory64 := flag.Bool("require-memory64", false, "reject wasm32 and modules without Memory64 (fail closed for required 64-bit builds)")
 	pureOnly := flag.Bool("pure", false, "emit the pure-Go backend only (no asm bundle, no arch build tags); the ABIInternal reference for benchmarking")
 	outlineMin := flag.Int("outline", 0, "outline large loops into their own functions; the value is the minimum loop body size in SSA values (0 disables)")
 	simdUnroll := flag.Int("simd-unroll", 0, "unroll eligible SIMD loops by this factor (2..8; 0 disables)")
@@ -68,6 +69,10 @@ func main() {
 	mod, err := wasm.Parse(r)
 	if err != nil {
 		fail("parse: %v", err)
+	}
+
+	if *requireMemory64 && !mod.Memory64() {
+		fail("this build requires Memory64, but the input has no 64-bit-indexed memory")
 	}
 
 	if *dump {
