@@ -279,6 +279,26 @@ func TestBadWasm(t *testing.T) {
 	}
 }
 
+// TestRequireMemory64 rejects an accidental wasm32 build rather than
+// silently emitting a 32-bit pointer-width module.
+func TestRequireMemory64RejectsWasm32(t *testing.T) {
+	cmd := buildAndRun(t, "-i", arithWasm(t), "-import", "example.com/test/pkg", "-require-memory64")
+	if cmd.ProcessState.ExitCode() == 0 {
+		t.Fatal("strict 64-bit mode accepted a wasm32 module")
+	}
+}
+
+// TestRequireMemory64AcceptsWasm64 verifies the memory flag matches the
+// checked-in Memory64 fixture. The transpile end-to-end suite separately
+// executes its generated amd64/arm64 code.
+func TestRequireMemory64AcceptsWasm64(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "mem64.go")
+	runMain(t, "-i", testfixture.WasmPath(t, "cg_mem64"), "-import", "example.com/test/pkg", "-o", output, "-require-memory64")
+	if b, err := os.ReadFile(output); err != nil || len(b) == 0 {
+		t.Fatalf("strict Memory64 AOT produced no code: bytes=%d err=%v", len(b), err)
+	}
+}
+
 // TestBulkExportPrefix exercises the -bulk-export-prefix flag.
 func TestBulkExportPrefix(t *testing.T) {
 	bin := testfixture.WasmPath(t, "wexports")
