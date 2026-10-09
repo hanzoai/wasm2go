@@ -81,6 +81,40 @@ jobs:
       - name: Test with the arm64 splices enabled
         run: go test -count=1 ./transpile/... ./internal/gcasm/...
 
+
+  # A separate mandatory release gate: Memory64 must actually allocate past
+  # 4 GiB, read/write above the wasm32 ceiling and report the right value.
+  # The regular unit suite may skip resource refusal on a developer laptop;
+  # this job converts that skip to a failure on a runner with enough RAM.
+  test-memory64-beyond4g:
+    runs-on: ubuntu-latest
+    env:
+      WASM2GO_REQUIRE_MEM64_4G: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install wat2wasm
+        run: make install/wat2wasm
+      - name: Require actual >4GiB Memory64 execution
+        run: go test -count=1 -run '^TestMem64BeyondFourGiB    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # golangci-lint is a tools/go.mod tool; install the Go version
+      # that module pins so `go tool -modfile=tools/go.mod` can build it.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/go.mod
+
+      - name: Lint
+        run: make lint
+ -timeout 15m ./transpile
+
+
   lint:
     runs-on: ubuntu-latest
     steps:
