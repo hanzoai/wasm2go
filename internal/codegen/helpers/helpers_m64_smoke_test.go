@@ -66,10 +66,10 @@ func TestMem64CheckedEAOverflowAndWidth(t *testing.T) {
 	for _, tc := range []struct {
 		addr, offset, width uint64
 	}{
-		{^uint64(0) - 31, 32, 8}, // 64-bit address+offset overflow
-		{^uint64(0), 0, 1},      // above memory even without offset
-		{4095, 0, 2},            // multi-byte width crosses memory end
-		{4096, 1, 1},            // address beyond memory end
+		{^uint64(0) - 31, 32, 8},
+		{^uint64(0), 0, 1},
+		{4095, 0, 2},
+		{4096, 1, 1}
 	} {
 		trapped := false
 		func() {
