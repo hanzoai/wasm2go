@@ -120,13 +120,43 @@ func TestMem64Semantics(t *testing.T) {
 	}
 }
 
+// TestMem64ScalarOverflowTraps guards the 64-bit address-space boundary.
+//
+// The original native unsafe.Add scalar path wrapped the effective address
+// when addr+memarg offset exceeded 2^64 and could overwrite low linear memory.
+// A validated wasm module may still receive arbitrary i64 runtime arguments;
+// validation cannot make its actual addresses safe. Both Go and asm backends
+// must trap before the native memory pointer is dereferenced.
+func TestMem64ScalarOverflowTraps(t *testing.T) {
+	dir := buildMem64(t, "cg_mem64.wasm", `	m := pkg.New()
+	checkTrap := func(addr int64) {
+		trapped := false
+		func() {
+			defer func() { trapped = recover() != nil }()
+			// Rw does i64.store/i64.load at addr + 32; -32 would
+			// wrap to zero if the unsigned 64-bit sum is unchecked.
+			m.Rw(addr, 123456)
+		}()
+		fmt.Println(trapped)
+	}
+	checkTrap(-32)
+	checkTrap(-1)
+	checkTrap(131072) // memory initially has two 64KiB pages; 131072 is OOB
+	fmt.Println(m.Rw(0, 424242))
+`)
+	if got, want := runMem64(t, dir), "true\ntrue\ntrue\n424242"; got != want {
+		t.Errorf("memory64 scalar trap mismatch:\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 // TestMem64BeyondFourGiB proves the point of memory64: grow the linear
 // memory past wasm32's 4 GiB ceiling and read/write above it. The test
 // allocates ~4.1 GiB, so it is skipped in -short runs (CI included
 // only on beefy runners).
 func TestMem64BeyondFourGiB(t *testing.T) {
-	if testing.Short() {
-		t.Skip("allocates >4GiB; skipped in -short")
+	require := os.Getenv("WASM2GO_REQUIRE_MEM64_4G") == "1"
+	if testing.Short() && !require {
+		t.Skip("allocates >4GiB; set WASM2GO_REQUIRE_MEM64_4G=1 for mandatory certification")
 	}
 	// 2 initial pages; +65536 pages lands at 4 GiB + 128 KiB, so the
 	// address 1<<32 is in bounds — one byte past everything wasm32
@@ -141,7 +171,10 @@ func TestMem64BeyondFourGiB(t *testing.T) {
 		t.Fatalf("unexpected output: %q", got)
 	}
 	if lines[0] == "-1" {
-		t.Skip("host refused a >4GiB linear memory")
+		if require {
+			t.Fatal("Memory64 mandatory gate failed: host refused >4GiB linear memory")
+		}
+		t.Skip("host refused >4GiB memory: NOT certified; re-run with WASM2GO_REQUIRE_MEM64_4G=1 on a large host")
 	}
 	if lines[1] != "424242" {
 		t.Errorf("read past 4GiB: got %s, want 424242", lines[1])

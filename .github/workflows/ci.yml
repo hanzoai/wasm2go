@@ -81,6 +81,23 @@ jobs:
       - name: Test with the arm64 splices enabled
         run: go test -count=1 ./transpile/... ./internal/gcasm/...
 
+
+  # Mandatory release gate: actually grow, read and write beyond 4GiB.
+  test-memory64-beyond4g:
+    runs-on: ubuntu-latest
+    env:
+      WASM2GO_REQUIRE_MEM64_4G: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install wat2wasm
+        run: make install/wat2wasm
+      - name: Require actual >4 GiB Memory64 execution
+        run: go test -count=1 -run '^TestMem64BeyondFourGiB$' -timeout 15m ./transpile
+
+
   lint:
     runs-on: ubuntu-latest
     steps:

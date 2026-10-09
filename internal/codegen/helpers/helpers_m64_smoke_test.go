@@ -57,3 +57,27 @@ func TestM64HelperSmoke(t *testing.T) {
 	_ = call(func() any { return anyOf(simd_p_m64_v128_store32_lane(m, 40, 8, 1, 0 /*v0*/, 7)) })
 	_ = call(func() any { return anyOf(simd_p_m64_v128_store64_lane(m, 40, 8, 1, 0 /*v0*/, 7)) })
 }
+
+func TestMem64CheckedEAOverflowAndWidth(t *testing.T) {
+	m := memTestModule(t, 4096)
+	if got := mem64CheckedEA(m, 32, 8, 8); got != 40 {
+		t.Fatalf("EA = %d, want 40", got)
+	}
+	for _, tc := range []struct {
+		addr, offset, width uint64
+	}{
+		{^uint64(0) - 31, 32, 8},
+		{^uint64(0), 0, 1},
+		{4095, 0, 2},
+		{4096, 1, 1},
+	} {
+		trapped := false
+		func() {
+			defer func() { trapped = recover() != nil }()
+			_ = mem64CheckedEA(m, tc.addr, tc.offset, tc.width)
+		}()
+		if !trapped {
+			t.Errorf("EA(%d,%d,%d) failed to trap", tc.addr, tc.offset, tc.width)
+		}
+	}
+}

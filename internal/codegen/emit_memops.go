@@ -147,9 +147,40 @@ func (em *ssaEmitter) emitMemStoreStmt(v *ssa.Value, emitExpr func(*ssa.Value) (
 // up the import.
 func (em *ssaEmitter) unsafeDerefExpr(spec memOpSpec, baseExpr ast.Expr, offset uint64, baseVal *ssa.Value) ast.Expr {
 	em.useImport("unsafe")
+	address := em.memOffsetExpr(baseExpr, offset, baseVal)
+	if em.mem64 {
+		// Native unsafe.Add has NO wasm bounds semantics. On memory64,
+		// unsigned address+offset can overflow 2^64 and wrap into valid
+		// low memory, silently corrupting it. Always check the full
+		// memory64 effective address AND scalar width before dereferencing.
+		// The helper is also included in the generated asm pipeline.
+		width := uint64(0)
+		switch spec.elemType {
+		case "uint8", "int8":
+			width = 1
+		case "uint16", "int16":
+			width = 2
+		case "uint32", "int32", "float32":
+			width = 4
+		case "uint64", "int64", "float64":
+			width = 8
+		default:
+			panic("unsupported memory64 load/store element: " + spec.elemType)
+		}
+		em.useHelper("mem64CheckedEA")
+		address = &ast.CallExpr{
+			Fun: em.helperRef("mem64CheckedEA"),
+			Args: []ast.Expr{
+				newID("m"),
+				&ast.CallExpr{Fun: newID("uint64"), Args: []ast.Expr{baseExpr}},
+				uintLit(offset),
+				uintLit(width),
+			},
+		}
+	}
 	added := &ast.CallExpr{
 		Fun:  &ast.SelectorExpr{X: newID("unsafe"), Sel: newID("Add")},
-		Args: []ast.Expr{em.memBasePtrExpr(), em.memOffsetExpr(baseExpr, offset, baseVal)},
+		Args: []ast.Expr{em.memBasePtrExpr(), address},
 	}
 	castFn := &ast.ParenExpr{X: &ast.StarExpr{X: newID(spec.elemType)}}
 	cast := &ast.CallExpr{Fun: castFn, Args: []ast.Expr{added}}

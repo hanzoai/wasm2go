@@ -53,6 +53,7 @@ wasm2go -dump -i module.wasm
 | `-import`             | Go import path of the generated package (required). |
 | `-out-dir`            | Output directory; required when the wasm exceeds the internal multi-file threshold. |
 | `-dump`               | Print a summary of the parsed module instead of generating code. |
+| `-require-memory64` | Reject wasm32 or modules without 64-bit-indexed memory. |
 | `-bulk-export-prefix` | Treat exports matching `<prefix><svc>_<mt>` as bulk-dispatch entries (one standalone `Inv_<svc>_<mt>` per match so the linker can drop unused ones). |
 | `-keep-dead-funcs`    | Disable whole-function dead-code elimination (useful for diffing). |
 | `-entry-exports`      | Comma-separated list of export names that are DCE roots; the literal value `NONE` means no export is a root. |
@@ -62,6 +63,38 @@ The translator's output shape (SSA pipeline, data-sidecar layout,
 native `wasi_snapshot_preview1`, multi-package + linkname-split for
 large modules) is auto-derived from the input. There is no caller-
 visible knob for any of those decisions.
+
+
+### Memory64 / native 64-bit builds
+
+**Memory64 is a source-module property**, not a switch that widens wasm32
+pointers. Hanzo's fork already supports i64-indexed memory, WASIp1 64-bit
+bindings, native code generation, and C/C++ wasm64 fixtures.
+
+For required 64-bit builds, refuse an accidental wasm32 artifact:
+
+```sh
+wasm2go -i module.wasm -pkg native \
+  -import example.com/app/internal/native \
+  -out-dir ./internal/native -require-memory64
+```
+
+A 64-bit Go host does not widen a `wasm32-wasip1` module. A genuine
+Memory64 source (e.g. from a compatible wasm64 compiler and sysroot) is
+required; do not assume stock Rust has a `wasm64-wasip1` std target.
+
+The scalar memory64 emit path checks address + offset for 64-bit
+overflow and ensures the full access width is in bounds before native
+pointer arithmetic. `TestMem64ScalarOverflowTraps` checks this behavior.
+
+The >4GiB proof test can skip on development hosts without enough
+memory. CI runs it with `WASM2GO_REQUIRE_MEM64_4G=1`, where a
+resource refusal **fails** certification instead of being counted as
+a pass. Do not advertise full 64-bit certification until that gate,
+the amd64/arm64 tests, and conformance checks all pass.
+
+**Security:** generated native Go does **not** retain WASM sandbox
+isolation. Untrusted WASM requires a separate sandbox backend.
 
 ### WASI support
 
