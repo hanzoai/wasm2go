@@ -69,7 +69,7 @@ func TestMem64CheckedEAOverflowAndWidth(t *testing.T) {
 		{^uint64(0) - 31, 32, 8},
 		{^uint64(0), 0, 1},
 		{4095, 0, 2},
-		{4096, 1, 1}
+		{4096, 1, 1},
 	} {
 		trapped := false
 		func() {
