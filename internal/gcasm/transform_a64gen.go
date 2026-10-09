@@ -24,10 +24,13 @@ var (
 	a64FconstRe = regexp.MustCompile(`\$f(32|64)\.([0-9a-f]+)\(SB\)`)
 	// Named frame slot: `pkg.name<+->N(SP)` or `pkg.name(SP)`. gc's
 	// local names include import paths and autotmp tildes
-	// (`pkg.~408(SP)`), so the char class covers `~` too.
-	a64NamedSlotRe = regexp.MustCompile(`[A-Za-z_.·~][A-Za-z0-9_./·~]*(?:([+\-]\d+))?\(SP\)`)
+	// (`pkg.~408(SP)`), so the char class covers `~` too. An import path
+	// may hold a hyphen (`github.com/hanzo-inc/x`): a `-` continues the
+	// name when a letter or `_` follows it, and starts the offset when a
+	// digit does, so `pkg.x-128(SP)` keeps its offset.
+	a64NamedSlotRe = regexp.MustCompile(`[A-Za-z_.·~](?:[A-Za-z0-9_./·~]|-[A-Za-z_])*(?:([+\-]\d+))?\(SP\)`)
 	// FP-relative arg reference: `pkg.name(FP)` / `pkg.name+N(FP)`.
-	a64FPRe = regexp.MustCompile(`[A-Za-z_.·~][A-Za-z0-9_./·~]*(?:([+\-]\d+))?\(FP\)`)
+	a64FPRe = regexp.MustCompile(`[A-Za-z_.·~](?:[A-Za-z0-9_./·~]|-[A-Za-z_])*(?:([+\-]\d+))?\(FP\)`)
 	// Hardware-SP reference with a plain numeric offset: `N(RSP)`. gc
 	// emits these for ABIInternal outgoing stack-args it spills below a
 	// call (e.g. `MOVW R16, 8(RSP)`); base+index memory ops like
