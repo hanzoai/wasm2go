@@ -3152,6 +3152,28 @@ func simd_p_v128_store64_lane(m *Module, addr int32, offset int32, lane int32, v
 // helpers keeps a comfortable non-overflow margin below 2^64.
 func mem64HardCap() uint64 { return 1 << 48 }
 
+// mem64CheckedEA implements the wasm memory64 effective-address rule for
+// SCALAR loads and stores. Native unsafe.Add does not bounds-check memory,
+// and 64-bit address+offset arithmetic must TRAP on overflow, not wrap
+// into the low addresses of the native Go backing slice.
+//
+// Split subtraction checks protect against BOTH u64 overflow and crossing
+// the end of linear memory, including multi-byte accesses at the boundary.
+// The result is a native offset only AFTER the full range is validated.
+//
+//go:noinline
+func mem64CheckedEA(m *Module, addr, offset, width uint64) uintptr {
+	if offset > ^uint64(0)-addr {
+		wasm_trap_simd_oob()
+	}
+	ea := addr + offset
+	size := m.memSize.Load()
+	if ea > size || width > size-ea {
+		wasm_trap_simd_oob()
+	}
+	return uintptr(ea)
+}
+
 // memorySize64 returns the current size in wasm pages as i64.
 func memorySize64(m *Module) int64 {
 	return int64(m.memSize.Load() >> 16)
