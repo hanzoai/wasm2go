@@ -23,7 +23,12 @@ var (
 
 func getWatFlags() []string {
 	watFlagsOnce.Do(func() {
-		out, _ := exec.Command("wat2wasm", "--help").CombinedOutput()
+		out, err := exec.Command("wat2wasm", "--help").CombinedOutput()
+		if err != nil {
+			// The later Wasm() invocation will report the real compiler
+			// failure. Do not infer unsupported flags from a broken help run.
+			return
+		}
 		help := string(out)
 		var flags []string
 		if strings.Contains(help, "--enable-exceptions") {
