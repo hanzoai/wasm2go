@@ -167,6 +167,7 @@ func (em *ssaEmitter) unsafeDerefExpr(spec memOpSpec, baseExpr ast.Expr, offset 
 		default:
 			panic("unsupported memory64 load/store element: " + spec.elemType)
 		}
+		em.useHelper("mem64CheckedEA")
 		address = &ast.CallExpr{
 			Fun: em.helperRef("mem64CheckedEA"),
 			Args: []ast.Expr{
